@@ -29,49 +29,29 @@ def generate_data(url, db):
             }
 
             print(collection_name, item)
-            collection.insert_one(item)
+            # collection.insert_one(item)
 
 def parallel_generate_data(urls, dbname):
     import concurrent.futures
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        futures = []
         for url in urls:
-            futures.append(executor.submit(generate_data, url, dbname))
+            executor.submit(generate_data, url, dbname)
 
         executor.shutdown(wait=True)
 
-def find_data():
+def find_data(url):
     from bs4 import BeautifulSoup
     import requests
 
-    root_url = 'https://www.smogon.com/stats/'
-
-    routes = []
-    r = requests.get(root_url)
-
+    output = []
+    r = requests.get(url)
     soup = BeautifulSoup(r.content, 'html.parser')
+
     branches = soup.find_all('a')
     for link in branches:
         ref = link.get('href')
-
-        # only 2022-03 just for storage reasons
-        # add to the predicate or remove for more months of data
-        if ref != "2022-03/":
-            continue
-
-        if ref != "../":
-            routes.append(f'{root_url}{ref}')
-
-    output = []
-    for route in routes:
-        r = requests.get(route)
-
-        soup = BeautifulSoup(r.content, 'html.parser')
-        branches = soup.find_all('a')
-        for link in branches:
-            ref = link.get('href')
-            if ref[-3:] == 'txt':
-                output.append(f'{route}{ref}')
+        if ref[-3:] == 'txt':
+            output.append(f'{url}{ref}')
 
     return output

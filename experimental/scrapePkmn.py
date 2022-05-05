@@ -1,5 +1,4 @@
 
-from importlib.metadata import distribution
 import requests
 import re
 
