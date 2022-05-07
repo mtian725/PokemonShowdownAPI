@@ -28,9 +28,22 @@ recordRoutes.route('/:date/:tier').get(async function(req, res) {
         });
 })
 
-recordRoutes.route("/*").get(async function(req, res) {
+recordRoutes.route('/:date/moveset/:tier').get(async function(req, res) {
     const dbConnect = db.getDb();
 
+    dbConnect
+        .collection(`${req.params.date}/moveset/${req.params.tier}`)
+        .find({})
+        .toArray(function (err, result) {
+            if (err) {
+                res.status(400).send("Error fetching listings!");
+            } else {
+                res.json(result)
+            }
+        });
+})
+
+recordRoutes.route("/*").get(async function(req, res) {
     res.status(404).send(`Invalid request for query ${req.path}`)
 })
 

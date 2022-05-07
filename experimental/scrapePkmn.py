@@ -21,6 +21,7 @@ usage_clock = 0
 c_and_c_switch = True
 
 dist_regex = "(.+) (\d+\.\d+)%"
+nature_ev_regex = "(\w+):(\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+)"
 c_and_c_pkmn = ""
 
 pkmn = {}
@@ -70,9 +71,26 @@ for line in r.iter_lines():
             case 5:
                 x = re.search(dist_regex, line_str)
                 if x:
-                    pkmn["spreads"][x.group(1)] = round(float(x.group(2))/100, 5)
-                else:
-                    pkmn["spreads"] = {}
+                    usage = round(float(x.group(2))/100, 5)
+                    nature_evs = re.search(nature_ev_regex, x.group(1))
+                    if nature_evs:
+                        pkmn["spreads"].append({
+                            "nature": nature_evs.group(1),
+                            "hp": nature_evs.group(2),
+                            "atk": nature_evs.group(3),
+                            "def": nature_evs.group(4),
+                            "spatk": nature_evs.group(5),
+                            "spdef": nature_evs.group(6),
+                            "speed": nature_evs.group(7),
+                            "usage": usage,
+                        })
+                    else:
+                        pkmn["spreads"].append({
+                            "nature": "Other",
+                            "usage": usage,
+                        })
+                else:   
+                    pkmn["spreads"] = []
 
             case 6:
                 x = re.search(dist_regex, line_str)

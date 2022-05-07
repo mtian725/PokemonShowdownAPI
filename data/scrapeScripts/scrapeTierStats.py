@@ -1,15 +1,18 @@
 
+from turtle import update
+
+
 def generate_data(url, db):
     import requests
+    import re
 
     r = requests.get(url)
     collection_name = url[29:-4]
 
-    if collection_name in db.list_collection_names():
-        print(f'{collection_name} is already in the DB')
-        return
+    elo_regex = "(.+)-(\d+)$"
+    elo = re.search(elo_regex, collection_name)
 
-    collection = db[collection_name]
+    collection = db[elo.group(1)]
 
     for line in r.iter_lines():
         line_str = line.decode('UTF-8')
@@ -20,20 +23,27 @@ def generate_data(url, db):
             name = values[1].strip()
             usage = round(float(values[2].strip()[:-1])/100, 5)
             raw_val = int(values[3])
-
+            rating = int(elo.group(2))
             item = {
+                "_id" : f'{name}-{rating}',
                 "ranking" : ranking,
-                "_id" : name,
+                "name" : name,
                 "usage" : usage,
-                "raw" : raw_val
+                "raw" : raw_val,
+                "rating": rating
             }
 
-            print(collection_name, item)
-            # collection.insert_one(item)
+            res = collection.update_one(
+                {"_id" : item["_id"]},
+                {"$set": item},
+                upsert=True
+            )
+            print(elo.group(1), elo.group(2), res.upserted_id)                                
 
 def parallel_generate_data(urls, dbname):
-    import concurrent.futures
-
+    import concurrent.futures, random
+    
+    random.shuffle(urls)
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
         for url in urls:
             executor.submit(generate_data, url, dbname)

@@ -5,11 +5,10 @@ def generate_data(url, db):
     r = requests.get(url)
     collection_name = url[29:-4]
 
-    if collection_name in db.list_collection_names():
-        print(f'{collection_name} is already in the DB')
-        return
+    elo_regex = "(.+)-(\d+)$"
+    elo = re.search(elo_regex, collection_name)
 
-    collection = db[collection_name]
+    collection = db[elo.group(1)]
 
     NUM_LINES_PER_BOX = 9
 
@@ -19,6 +18,7 @@ def generate_data(url, db):
     c_and_c_switch = True
 
     dist_regex = "(.+) (\d+\.\d+)%"
+    nature_ev_regex = "(\w+):(\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+)"
     c_and_c_pkmn = ""
 
     pkmn = {}
@@ -29,15 +29,22 @@ def generate_data(url, db):
             line_clock += 1
 
             if line_clock % NUM_LINES_PER_BOX == 0:
-                print(collection_name, pkmn)
-                ## PUT INSERT INTO DB HERE
+                rating = int(elo.group(2))
+                pkmn["rating"] = rating
+                pkmn["_id"] = f'{pkmn["name"]}-{rating}'
 
+                res = collection.update_one(
+                    {"_id": pkmn["_id"]},
+                    {"$set": pkmn},
+                    upsert=True
+                )
+                print(elo.group(1), elo.group(2), res.upserted_id)
 
                 pkmn = {}
         else:
             match line_clock % NUM_LINES_PER_BOX:
                 case 1:
-                    pkmn["_id"] = line_str
+                    pkmn["name"] = line_str
 
                 case 2:
                     match usage_clock % 3:
@@ -71,9 +78,26 @@ def generate_data(url, db):
                 case 5:
                     x = re.search(dist_regex, line_str)
                     if x:
-                        pkmn["spreads"][x.group(1)] = round(float(x.group(2))/100, 5)
-                    else:
-                        pkmn["spreads"] = {}
+                        usage = round(float(x.group(2))/100, 5)
+                        nature_evs = re.search(nature_ev_regex, x.group(1))
+                        if nature_evs:
+                            pkmn["spreads"].append({
+                                "nature": nature_evs.group(1),
+                                "hp": nature_evs.group(2),
+                                "atk": nature_evs.group(3),
+                                "def": nature_evs.group(4),
+                                "spatk": nature_evs.group(5),
+                                "spdef": nature_evs.group(6),
+                                "speed": nature_evs.group(7),
+                                "usage": usage,
+                            })
+                        else:
+                            pkmn["spreads"].append({
+                                "nature": "Other",
+                                "usage": usage,
+                            })
+                    else:   
+                        pkmn["spreads"] = []
 
                 case 6:
                     x = re.search(dist_regex, line_str)
@@ -112,8 +136,9 @@ def generate_data(url, db):
                     print("something that should not happen")
 
 def parallel_generate_data(urls, dbname):
-    import concurrent.futures
-
+    import concurrent.futures, random
+    
+    random.shuffle(urls)
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
         for url in urls:
             executor.submit(generate_data, url, dbname)
