@@ -1,12 +1,10 @@
 # PokemonShowdownAPI
 This project is licensed under the terms of the MIT license.
 
-<br>
-
 ------
 Deploying server to Heroku
 
-```git subtree push --prefix server heroku master```
+```git subtree push --prefix server heroku main```
 
 Monitor server
 
